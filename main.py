@@ -29,7 +29,7 @@ def cancel(update: Update, context: CallbackContext):
 # Define the main function
 def main():
     # Get the API key from the environment
-    API_KEY = os.environ.get("TELEGRAM_BOT_API_KEY", None)
+    API_KEY = os.environ.get("5648103386:AAGb2tlYazkxTI3OVJp5khtTFOq6DVWL8eU", None)
     if API_KEY is None:
         print("The TELEGRAM_BOT_API_KEY environment variable is not set")
         return
