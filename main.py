@@ -1,48 +1,54 @@
 import logging
-import os
 import telegram
-from telegram.error import BadRequest
-from telegram.ext import Updater, CommandHandler, CallbackContext
+from telegram import ChatAction, Bot, ChatMember
+from telegram.ext import Updater, CommandHandler
 
-# Enable logging
 logging.basicConfig(format='%(asctime)s - %(name)s - %(levelname)s - %(message)s',
                     level=logging.INFO)
 
 logger = logging.getLogger(__name__)
 
-# Define the remove_deleted_accounts function
-def remove_deleted_accounts(update: Update, context: CallbackContext):
-    group = update.message.chat
-    members = context.bot.get_chat_administrators(chat_id=group.id)
+def start(update, context):
+    update.message.reply_text("Hi! I'm a bot that can help you remove dead members from your Telegram community. Use /remove to start removing.")
 
+def help(update, context):
+    update.message.reply_text("I can remove dead members from your Telegram community. Try using /remove to start removing.")
+
+def remove(update, context):
+    bot = context.bot
+    chat_id = update.message.chat.id
+    members = bot.get_chat_administrators(chat_id)
+    dead_members = []
     for member in members:
-        user = member.user
+        user_id = member.user.id
         try:
-            context.bot.get_chat_member(chat_id=group.id, user_id=user.id)
-        except BadRequest as e:
-            if e.message == "User not found":
-                context.bot.kick_chat_member(chat_id=group.id, user_id=user.id)
+            bot.get_chat_member(chat_id, user_id)
+        except telegram.TelegramError:
+            dead_members.append(user_id)
+    for dead_member in dead_members:
+        bot.kick_chat_member(chat_id, dead_member)
+    update.message.reply_text("Removed {} dead members from the community.".format(len(dead_members)))
 
-def cancel(update: Update, context: CallbackContext):
-    context.bot.send_message(chat_id=update.message.chat_id, text="Cancelling command...")
+def error(update, context):
+    logger.warning('Update "%s" caused error "%s"', update, context.error)
 
-# Define the main function
 def main():
-    # Get the API key from the environment
-    API_KEY = os.environ.get("5648103386:AAGb2tlYazkxTI3OVJp5khtTFOq6DVWL8eU", None)
-    if API_KEY is None:
-        print("The TELEGRAM_BOT_API_KEY environment variable is not set")
-        return
+    # Create the Updater and pass it your bot's token.
+    # Make sure to set use_context=True to use the new context based callbacks
+    # Post version 12 this will no longer be necessary
+    updater = Updater("5648103386:AAGb2tlYazkxTI3OVJp5khtTFOq6DVWL8eU", use_context=True)
 
-    # Set up the updater and dispatcher
-    updater = Updater(token=API_KEY, use_context=True)
     dp = updater.dispatcher
 
-    # Add the command handler for the remove_deleted_accounts command
-    dp.add_handler(CommandHandler("remove_deleted_accounts", remove_deleted_accounts))
-    dp.add_handler(CommandHandler("cancel", cancel))
+    # Add command handler to start and help commands
+    dp.add_handler(CommandHandler("start", start))
+    dp.add_handler(CommandHandler("help", help))
+    dp.add_handler(CommandHandler("remove", remove))
 
-    # Start the bot
+    # Add error handler
+    dp.add_error_handler(error)
+
+    # Start the Bot
     updater.start_polling()
 
     # Run the bot until you press Ctrl-C or the process receives SIGINT,
